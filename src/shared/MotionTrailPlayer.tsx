@@ -28,14 +28,16 @@ export interface MotionTrailPlayerProps {
   bottom?: number;
   /** Optional horizontal flip */
   flipX?: boolean;
+  /** Optional 0..1 highlight pulse intensity (e.g. when player's name is spoken) */
+  pulseIntensity?: number;
   /** Optional extra container style */
   style?: React.CSSProperties;
 }
 
 const TRAIL_LAYERS = [
-  { offset: 75, opacity: 0.1 },
-  { offset: 50, opacity: 0.25 },
-  { offset: 25, opacity: 0.45 },
+  { offset: 60, opacity: 0.06, blurPx: 5 },
+  { offset: 40, opacity: 0.14, blurPx: 3 },
+  { offset: 20, opacity: 0.26, blurPx: 1.5 },
 ] as const;
 
 export const MotionTrailPlayer: React.FC<MotionTrailPlayerProps> = ({
@@ -54,6 +56,7 @@ export const MotionTrailPlayer: React.FC<MotionTrailPlayerProps> = ({
   right,
   bottom,
   flipX = false,
+  pulseIntensity = 0,
   style,
 }) => {
   const frame = useCurrentFrame();
@@ -102,6 +105,9 @@ export const MotionTrailPlayer: React.FC<MotionTrailPlayerProps> = ({
 
   const resolvedSrc = staticFile(src);
   const flipScaleX = flipX ? -1 : 1;
+  const pulseScale = 1 + pulseIntensity * 0.035;
+  const foregroundAuraPx = Math.round(14 + pulseIntensity * 12);
+  const foregroundBrightness = 1 + pulseIntensity * 0.1;
 
   const sharedImgStyle: React.CSSProperties = {
     height: `${height}px`,
@@ -120,13 +126,13 @@ export const MotionTrailPlayer: React.FC<MotionTrailPlayerProps> = ({
         right,
         bottom,
         opacity: entranceOpacity,
-        transform: `translate3d(${slideX}px, 0, 0) scale(${baseScale * dynamicZoom})`,
+        transform: `translate3d(${slideX}px, 0, 0) scale(${baseScale * dynamicZoom * pulseScale})`,
         transformOrigin: 'center center',
         pointerEvents: 'none',
         ...style,
       }}
     >
-      {/* 3 staggered Motiontrail ghost layers behind the subject */}
+      {/* 3 softer cinematic Motiontrail ghost layers behind the subject (no heavy drop-shadows) */}
       {TRAIL_LAYERS.map((layer) => {
         const ghostX = trailSign * layer.offset * burstMultiplier;
         return (
@@ -140,20 +146,20 @@ export const MotionTrailPlayer: React.FC<MotionTrailPlayerProps> = ({
               left: 0,
               opacity: layer.opacity,
               transform: `translate3d(${ghostX}px, 0, 0) scaleX(${flipScaleX})`,
-              filter: `drop-shadow(0 0 24px ${glowColor}) drop-shadow(0 0 8px ${glowColor}) saturate(1.35) brightness(1.06)`,
+              filter: `blur(${layer.blurPx}px) saturate(1.22) brightness(1.04)`,
             }}
           />
         );
       })}
 
-      {/* Crisp foreground subject cutout */}
+      {/* Crisp foreground subject cutout with clean subtle aura */}
       <Img
         src={resolvedSrc}
         style={{
           ...sharedImgStyle,
           position: 'relative',
           transform: `scaleX(${flipScaleX})`,
-          filter: `drop-shadow(0 14px 28px rgba(0, 0, 0, 0.72)) drop-shadow(0 0 14px ${glowColor}55)`,
+          filter: `drop-shadow(0 0 ${foregroundAuraPx}px ${glowColor}70) brightness(${foregroundBrightness.toFixed(3)})`,
         }}
       />
     </div>

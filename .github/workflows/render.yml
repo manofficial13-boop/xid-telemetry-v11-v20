@@ -29,7 +29,7 @@ jobs:
       - name: Render MP4 Video
         env:
           EPISODE_ID: ${{ github.event.inputs.episode || 'v11' }}
-        run: npx remotion render src/index.ts "$EPISODE_ID" "out/${EPISODE_ID}.mp4"
+        run: npx remotion render src/index.ts "$EPISODE_ID" "out/${EPISODE_ID}.mp4" --concurrency=4
 
       - name: Upload Rendered Video
         uses: actions/upload-artifact@v4

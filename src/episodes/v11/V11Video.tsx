@@ -1,11 +1,9 @@
 import React from 'react';
 import {
   AbsoluteFill,
-  Img,
   Sequence,
   interpolate,
   spring,
-  staticFile,
   useCurrentFrame,
   useVideoConfig,
 } from 'remotion';
@@ -21,16 +19,14 @@ const FONT_UI = "'Inter', 'Montserrat', 'Liberation Sans', 'DejaVu Sans', sans-s
 
 /**
  * 3-frame Camerashake helper: ±12px translate jitter on major impact beats ONLY.
- * Frame 0 stays dead-center (0, 0) with zero blur so the thumbnail is razor-sharp,
- * then shakes across frames 1-3 for the opening impact beat.
+ * Frame 0 stays dead-center (0, 0) with zero shake/blur so the opening thumbnail is razor-sharp.
  */
-const IMPACT_BEATS = [0, 180, 405, 685, 920] as const;
+const IMPACT_BEATS = [183, 651, 927] as const;
 
 const SHAKE_PATTERN: ReadonlyArray<{ x: number; y: number }> = [
   { x: 12, y: -9 },
   { x: -12, y: 8 },
-  { x: 8, y: -6 },
-  { x: -4, y: 3 },
+  { x: 7, y: -5 },
 ];
 
 function getCameraShakeTransform(frame: number): {
@@ -40,13 +36,7 @@ function getCameraShakeTransform(frame: number): {
 } {
   for (const beat of IMPACT_BEATS) {
     const offset = frame - beat;
-    if (beat === 0) {
-      // Keep Frame 0 crisp and centered for thumbnail; shake frames 1..3
-      if (offset >= 1 && offset <= 3) {
-        const sample = SHAKE_PATTERN[offset - 1];
-        return { x: sample.x, y: sample.y, scale: 1.028 };
-      }
-    } else if (offset >= 0 && offset < SHAKE_PATTERN.length) {
+    if (offset >= 0 && offset < SHAKE_PATTERN.length) {
       const sample = SHAKE_PATTERN[offset];
       return { x: sample.x, y: sample.y, scale: 1.028 };
     }
@@ -54,201 +44,183 @@ function getCameraShakeTransform(frame: number): {
   return { x: 0, y: 0, scale: 1 };
 }
 
-/** Exact SFX trigger map across the 1080-frame (36.0s) episode */
+/** Exact audio-verified SFX trigger map across the 1080-frame (36.0s) episode */
 const V11_SFX_TRIGGERS: SfxTrigger[] = [
+  // Scene 1 (0 - 183)
   { frame: 0, type: 'bass-hit', volume: 0.55 },
-  { frame: 95, type: 'whoosh', volume: 0.45 },
-  { frame: 180, type: 'whoosh', volume: 0.45 },
-  { frame: 180, type: 'bass-hit', volume: 0.55 },
-  { frame: 240, type: 'tick', volume: 0.35 },
-  { frame: 405, type: 'whoosh', volume: 0.45 },
-  { frame: 450, type: 'tick', volume: 0.35 },
-  { frame: 480, type: 'tick', volume: 0.35 },
-  { frame: 510, type: 'tick', volume: 0.35 },
-  { frame: 685, type: 'bass-hit', volume: 0.55 },
-  { frame: 790, type: 'tick', volume: 0.35 },
-  { frame: 920, type: 'whoosh', volume: 0.45 },
-  { frame: 920, type: 'bass-hit', volume: 0.55 },
+  // Scene 2 (183 - 330)
+  { frame: 183, type: 'whoosh', volume: 0.45 },
+  { frame: 183, type: 'bass-hit', volume: 0.55 },
+  // Scene 3 (330 - 651)
+  { frame: 330, type: 'whoosh', volume: 0.45 },
+  { frame: 441, type: 'tick', volume: 0.35 },
+  { frame: 507, type: 'tick', volume: 0.35 },
+  { frame: 570, type: 'tick', volume: 0.35 },
+  // Scene 4 (651 - 927)
+  { frame: 651, type: 'bass-hit', volume: 0.55 },
+  { frame: 705, type: 'tick', volume: 0.35 },
+  { frame: 801, type: 'tick', volume: 0.35 },
+  // Scene 5 (927 - 1080)
+  { frame: 927, type: 'whoosh', volume: 0.45 },
+  { frame: 927, type: 'bass-hit', volume: 0.55 },
 ];
 
 /**
- * Full 3-5 word kinetic subtitle map aligned to the 36.0s voiceover script,
- * accounting for slower spoken pronunciation of numbers and units.
+ * Exact 21 audio-verified kinetic subtitle segments (30 FPS, verified against vo.mp3).
  */
 const V11_SUBTITLES: SubtitleSegment[] = [
-  // Scene 1 (0 - 180 | 0.0s - 6.0s)
-  // "Three point two G's of launch force is what separates Prime Ronaldo Nazário from Kylian Mbappé."
+  // Scene 1 (0 - 183 | 0.0s - 6.1s)
   {
     startFrame: 0,
-    endFrame: 44,
+    endFrame: 63,
     text: "3.2 G'S OF LAUNCH FORCE",
     highlightWords: ['3.2', "G'S"],
     highlightColor: '#00F0FF',
   },
   {
-    startFrame: 44,
-    endFrame: 84,
+    startFrame: 63,
+    endFrame: 96,
     text: 'IS WHAT SEPARATES',
-    highlightWords: ['SEPARATES'],
-    highlightColor: '#FFD700',
   },
   {
-    startFrame: 84,
-    endFrame: 132,
+    startFrame: 96,
+    endFrame: 141,
     text: 'PRIME RONALDO NAZÁRIO',
     highlightWords: ['RONALDO', 'NAZÁRIO'],
     highlightColor: '#FFD700',
   },
   {
-    startFrame: 132,
-    endFrame: 179,
-    text: 'FROM KYLIAN MBAPPÉ',
+    startFrame: 141,
+    endFrame: 183,
+    text: 'FROM KYLIAN MBAPPÉ.',
     highlightWords: ['KYLIAN', 'MBAPPÉ'],
     highlightColor: '#00F0FF',
   },
 
-  // Scene 2 (180 - 405 | 6.0s - 13.5s)
-  // "While Mbappé hits a terrifying top speed of 38 kilometers per hour,"
+  // Scene 2 (183 - 330 | 6.1s - 11.0s)
   {
-    startFrame: 180,
-    endFrame: 238,
+    startFrame: 183,
+    endFrame: 228,
     text: 'WHILE MBAPPÉ HITS',
     highlightWords: ['MBAPPÉ'],
     highlightColor: '#00F0FF',
   },
   {
-    startFrame: 238,
-    endFrame: 304,
+    startFrame: 228,
+    endFrame: 267,
     text: 'A TERRIFYING TOP SPEED',
     highlightWords: ['TOP', 'SPEED'],
     highlightColor: '#FFD700',
   },
   {
-    startFrame: 304,
-    endFrame: 404,
+    startFrame: 267,
+    endFrame: 330,
     text: 'OF 38 KILOMETERS PER HOUR,',
-    highlightWords: ['38', 'KILOMETERS', 'HOUR'],
+    highlightWords: ['38', 'KILOMETERS'],
     highlightColor: '#00F0FF',
   },
 
-  // Scene 3 (405 - 685 | 13.5s - 22.8s)
-  // "biomechanics from R9's 1997 Barcelona peak reveal he reached 30 kilometers per hour in just 1.8 seconds, while dribbling at full stride."
+  // Scene 3 (330 - 651 | 11.0s - 21.7s)
   {
-    startFrame: 405,
-    endFrame: 452,
+    startFrame: 330,
+    endFrame: 378,
     text: "BIOMECHANICS FROM R9'S",
     highlightWords: ["R9'S"],
     highlightColor: '#FFD700',
   },
   {
-    startFrame: 452,
-    endFrame: 506,
+    startFrame: 378,
+    endFrame: 441,
     text: '1997 BARCELONA PEAK',
     highlightWords: ['1997', 'BARCELONA'],
     highlightColor: '#FFD700',
   },
   {
-    startFrame: 506,
-    endFrame: 548,
-    text: 'REVEAL HE REACHED',
-    highlightWords: ['REACHED'],
+    startFrame: 441,
+    endFrame: 507,
+    text: 'REVEAL HE REACHED 30 KM/H',
+    highlightWords: ['30', 'KM/H'],
     highlightColor: '#00F0FF',
   },
   {
-    startFrame: 548,
-    endFrame: 602,
-    text: '30 KILOMETERS PER HOUR',
-    highlightWords: ['30', 'KILOMETERS'],
-    highlightColor: '#00F0FF',
-  },
-  {
-    startFrame: 602,
-    endFrame: 646,
+    startFrame: 507,
+    endFrame: 570,
     text: 'IN JUST 1.8 SECONDS,',
     highlightWords: ['1.8', 'SECONDS'],
     highlightColor: '#FFD700',
   },
   {
-    startFrame: 646,
-    endFrame: 684,
+    startFrame: 570,
+    endFrame: 651,
     text: 'WHILE DRIBBLING AT FULL STRIDE.',
-    highlightWords: ['DRIBBLING', 'FULL', 'STRIDE'],
+    highlightWords: ['FULL', 'STRIDE'],
     highlightColor: '#00F0FF',
   },
 
-  // Scene 4 (685 - 920 | 22.8s - 30.7s)
-  // "That instant torque generated nearly 400 Newtons of pitch push-off, leaving defenders frozen before their brains could even react."
+  // Scene 4 (651 - 927 | 21.7s - 30.9s)
   {
-    startFrame: 685,
-    endFrame: 726,
+    startFrame: 651,
+    endFrame: 705,
     text: 'THAT INSTANT TORQUE',
     highlightWords: ['INSTANT', 'TORQUE'],
     highlightColor: '#FFD700',
   },
   {
-    startFrame: 726,
-    endFrame: 778,
+    startFrame: 705,
+    endFrame: 762,
     text: 'GENERATED NEARLY 400 NEWTONS',
     highlightWords: ['400', 'NEWTONS'],
     highlightColor: '#FFD700',
   },
   {
-    startFrame: 778,
-    endFrame: 816,
+    startFrame: 762,
+    endFrame: 801,
     text: 'OF PITCH PUSH-OFF,',
     highlightWords: ['PUSH-OFF'],
     highlightColor: '#00F0FF',
   },
   {
-    startFrame: 816,
-    endFrame: 854,
+    startFrame: 801,
+    endFrame: 855,
     text: 'LEAVING DEFENDERS FROZEN',
     highlightWords: ['FROZEN'],
     highlightColor: '#00F0FF',
   },
   {
-    startFrame: 854,
-    endFrame: 886,
-    text: 'BEFORE THEIR BRAINS',
+    startFrame: 855,
+    endFrame: 927,
+    text: 'BEFORE THEIR BRAINS COULD REACT.',
     highlightWords: ['BRAINS'],
     highlightColor: '#FFD700',
   },
-  {
-    startFrame: 886,
-    endFrame: 919,
-    text: 'COULD EVEN REACT.',
-    highlightWords: ['REACT'],
-    highlightColor: '#00F0FF',
-  },
 
-  // Scene 5 (920 - 1080 | 30.7s - 36.0s)
-  // "So if both superstars lined up from a dead stop, who takes the crown, because..."
+  // Scene 5 (927 - 1080 | 30.9s - 36.0s)
   {
-    startFrame: 920,
-    endFrame: 962,
+    startFrame: 927,
+    endFrame: 984,
     text: 'SO IF BOTH SUPERSTARS',
     highlightWords: ['SUPERSTARS'],
     highlightColor: '#FFD700',
   },
   {
-    startFrame: 962,
-    endFrame: 990,
-    text: 'LINED UP FROM',
-    highlightWords: ['LINED'],
-    highlightColor: '#00F0FF',
-  },
-  {
-    startFrame: 990,
-    endFrame: 1025,
-    text: 'A DEAD STOP,',
+    startFrame: 984,
+    endFrame: 1023,
+    text: 'LINED UP FROM A DEAD STOP,',
     highlightWords: ['DEAD', 'STOP'],
     highlightColor: '#00F0FF',
   },
   {
-    startFrame: 1025,
-    endFrame: 1080,
-    text: 'WHO TAKES THE CROWN, BECAUSE...',
+    startFrame: 1023,
+    endFrame: 1065,
+    text: 'WHO TAKES THE CROWN,',
     highlightWords: ['CROWN'],
+    highlightColor: '#FFD700',
+  },
+  {
+    startFrame: 1065,
+    endFrame: 1080,
+    text: 'BECAUSE...',
+    highlightWords: ['BECAUSE'],
     highlightColor: '#FFD700',
   },
 ];
@@ -328,51 +300,38 @@ const TelemetryBadge: React.FC<{
 );
 
 /**
- * SCENE 1 (Frames 0 - 180): Frame 0 Hook & Thumbnail
- * Full Fluoronight + Panshot stadium, giant 3.2 G sandwiched behind R9 MotionTrail,
- * LAUNCH FORCE SCAN badge, and Mbappé split preview sliding in at frame 95.
+ * SCENE 1 (Frames 0 - 183 | 0.0s - 6.1s): Unboxed Symmetric Face-Off & 3D Depth Hook
+ * Both Prime R9 (left, #FFD700) and Kylian Mbappé (right, #00F0FF) rendered equally as
+ * free cutouts from Frame 0, heads overlapping the lowered 3.2 G metric, with centered VS
+ * badge and two identical symmetric stat pills cleanly above the subtitle safe zone.
  */
 const Scene1Hook: React.FC = () => {
   const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
 
-  // R9 subtly shifts left when Mbappé split preview slides in at frame 95
-  const r9ShiftX = interpolate(frame, [95, 118], [0, -135], {
+  const metricScale = interpolate(frame, [0, 183], [1, 1.04], {
     extrapolateLeft: 'clamp',
     extrapolateRight: 'clamp',
   });
 
-  // Mbappé split preview spring entrance starting at frame 95
-  const mbappeLocalFrame = Math.max(0, frame - 95);
-  const mbappeSpring =
-    frame >= 95
-      ? spring({
-          frame: mbappeLocalFrame,
-          fps,
-          config: { damping: 14, stiffness: 165, mass: 0.8 },
-        })
-      : 0;
-
-  const mbappePanelX = interpolate(mbappeSpring, [0, 1], [480, 0]);
-  const vsScale =
-    frame >= 100
-      ? spring({
-          frame: frame - 100,
-          fps,
-          config: { damping: 12, stiffness: 220, mass: 0.7 },
-        })
-      : 0;
-
-  const metricScale = interpolate(frame, [0, 180], [1, 1.045], {
+  // Subtle gold highlight pulse on R9 at frame 96 ("PRIME RONALDO NAZÁRIO")
+  const r9Pulse = interpolate(frame, [96, 104, 138], [0, 1, 0], {
     extrapolateLeft: 'clamp',
     extrapolateRight: 'clamp',
   });
+
+  // Subtle cyan highlight pulse on Mbappé at frame 141 ("FROM KYLIAN MBAPPÉ.")
+  const mbappePulse = interpolate(frame, [141, 149, 180], [0, 1, 0], {
+    extrapolateLeft: 'clamp',
+    extrapolateRight: 'clamp',
+  });
+
+  const vsBreath = 1 + Math.sin(frame * 0.09) * 0.035;
 
   return (
     <AbsoluteFill>
       <FluoronightBg
         panshotBlur
-        auraMode="cyan"
+        auraMode="dual"
         panDirection="left"
         panRangePx={42}
         filterId="v11-scene1-panshot"
@@ -384,11 +343,11 @@ const Scene1Hook: React.FC = () => {
         accent="#00F0FF"
       />
 
-      {/* Giant 3.2 G metric SANDWICHED behind R9 cutout (zIndex: 2) */}
+      {/* Giant 3.2 G metric lowered ~50px behind both player cutouts for true 3D head overlap */}
       <div
         style={{
           position: 'absolute',
-          top: 262,
+          top: 312,
           left: 0,
           right: 0,
           display: 'flex',
@@ -403,7 +362,7 @@ const Scene1Hook: React.FC = () => {
         <div
           style={{
             fontFamily: FONT_DISPLAY,
-            fontSize: 220,
+            fontSize: 230,
             fontWeight: 900,
             lineHeight: 0.92,
             letterSpacing: '-0.04em',
@@ -416,193 +375,217 @@ const Scene1Hook: React.FC = () => {
         </div>
         <div
           style={{
-            width: 680,
+            width: 720,
             height: 3,
             marginTop: 14,
             background:
-              'linear-gradient(90deg, rgba(0,240,255,0) 0%, #00F0FF 50%, rgba(0,240,255,0) 100%)',
-            boxShadow: '0 0 16px #00F0FF',
+              'linear-gradient(90deg, rgba(255,215,0,0) 0%, #FFD700 32%, #FFFFFF 50%, #00F0FF 68%, rgba(0,240,255,0) 100%)',
+            boxShadow: '0 0 16px rgba(0, 240, 255, 0.8)',
           }}
         />
       </div>
 
-      {/* Hero R9 cutout via MotionTrailPlayer — immediately visible & bold at Frame 0 */}
+      {/* Reactive gold aura flare behind R9 on name spoken at frame 96 */}
+      {r9Pulse > 0.01 && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 430,
+            left: -40,
+            width: 620,
+            height: 760,
+            background:
+              'radial-gradient(circle at 50% 45%, rgba(255, 215, 0, 0.48) 0%, rgba(255, 165, 0, 0.16) 44%, rgba(0, 0, 0, 0) 72%)',
+            mixBlendMode: 'screen',
+            opacity: r9Pulse,
+            zIndex: 4,
+            pointerEvents: 'none',
+          }}
+        />
+      )}
+
+      {/* Reactive cyan aura flare behind Mbappé on name spoken at frame 141 */}
+      {mbappePulse > 0.01 && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 430,
+            right: -40,
+            width: 620,
+            height: 760,
+            background:
+              'radial-gradient(circle at 50% 45%, rgba(0, 240, 255, 0.50) 0%, rgba(0, 110, 255, 0.18) 44%, rgba(0, 0, 0, 0) 72%)',
+            mixBlendMode: 'screen',
+            opacity: mbappePulse,
+            zIndex: 4,
+            pointerEvents: 'none',
+          }}
+        />
+      )}
+
+      {/* Left Fighter: Prime R9 — free cutout from Frame 0 with #FFD700 gold aura */}
       <MotionTrailPlayer
         src="v11/images/r9.png"
         trailDirection="left"
-        glowColor="#00F0FF"
+        glowColor="#FFD700"
         instantFrameZero
-        height={1340}
+        height={1240}
         top={200}
-        left={115 + r9ShiftX}
-        zoomAmount={0.055}
-        zoomDuration={180}
+        left={-125}
+        zoomAmount={0.045}
+        zoomDuration={183}
+        pulseIntensity={r9Pulse}
         style={{ zIndex: 5 }}
       />
 
-      {/* Compact split preview of Mbappé sliding in from right at frame 95 */}
-      {frame >= 95 && (
-        <div
-          style={{
-            position: 'absolute',
-            top: 410,
-            right: 26,
-            width: 390,
-            height: 700,
-            borderRadius: 24,
-            overflow: 'hidden',
-            backgroundColor: 'rgba(4, 16, 40, 0.84)',
-            border: '2.5px solid #00F0FF',
-            boxShadow:
-              '0 0 36px rgba(0, 240, 255, 0.5), 0 16px 40px rgba(0, 0, 0, 0.78)',
-            transform: `translate3d(${mbappePanelX}px, 0, 0)`,
-            zIndex: 8,
-          }}
-        >
-          {/* Cyan radial glow inside split preview */}
-          <div
-            style={{
-              position: 'absolute',
-              inset: 0,
-              background:
-                'radial-gradient(circle at 50% 45%, rgba(0, 240, 255, 0.36) 0%, rgba(0, 60, 180, 0.14) 52%, rgba(2, 8, 22, 0.9) 100%)',
-            }}
-          />
-          <Img
-            src={staticFile('v11/images/mbappe.png')}
-            style={{
-              position: 'absolute',
-              top: 38,
-              left: -34,
-              height: 610,
-              width: 'auto',
-              objectFit: 'contain',
-              filter: 'drop-shadow(0 0 18px rgba(0, 240, 255, 0.7))',
-            }}
-          />
-          <div
-            style={{
-              position: 'absolute',
-              bottom: 0,
-              left: 0,
-              right: 0,
-              padding: '16px 20px',
-              background:
-                'linear-gradient(0deg, rgba(2, 8, 22, 0.96) 0%, rgba(2, 8, 22, 0.7) 75%, rgba(2, 8, 22, 0) 100%)',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-            }}
-          >
-            <span
-              style={{
-                fontFamily: FONT_DISPLAY,
-                fontSize: 24,
-                fontWeight: 900,
-                color: '#FFFFFF',
-                letterSpacing: '0.06em',
-              }}
-            >
-              K. MBAPPÉ
-            </span>
-            <span
-              style={{
-                fontFamily: FONT_DISPLAY,
-                fontSize: 22,
-                fontWeight: 900,
-                color: '#00F0FF',
-              }}
-            >
-              38 KM/H
-            </span>
-          </div>
-        </div>
-      )}
+      {/* Right Fighter: Kylian Mbappé — free cutout from Frame 0 with #00F0FF cyan aura */}
+      <MotionTrailPlayer
+        src="v11/images/mbappe.png"
+        trailDirection="right"
+        glowColor="#00F0FF"
+        instantFrameZero
+        height={880}
+        top={412}
+        right={-105}
+        zoomAmount={0.045}
+        zoomDuration={183}
+        pulseIntensity={mbappePulse}
+        style={{ zIndex: 5 }}
+      />
 
-      {/* VS emblem popping in at frame 100 */}
-      {frame >= 100 && (
-        <div
-          style={{
-            position: 'absolute',
-            top: 720,
-            left: 590,
-            width: 92,
-            height: 92,
-            borderRadius: '50%',
-            background: 'linear-gradient(135deg, #FFD700 0%, #00F0FF 100%)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: '0 0 28px rgba(0, 240, 255, 0.85), 0 6px 20px rgba(0,0,0,0.75)',
-            transform: `scale(${vsScale})`,
-            zIndex: 12,
-          }}
-        >
-          <span
-            style={{
-              fontFamily: FONT_DISPLAY,
-              fontSize: 34,
-              fontWeight: 900,
-              color: '#030816',
-              letterSpacing: '-0.02em',
-            }}
-          >
-            VS
-          </span>
-        </div>
-      )}
-
-      {/* Compact bottom telemetry strip cleanly above subtitle safe zone */}
+      {/* Centered VS emblem between both players from Frame 0 */}
       <div
         style={{
           position: 'absolute',
-          bottom: 598,
-          left: 72,
-          right: 72,
+          top: 760,
+          left: '50%',
+          marginLeft: -48,
+          width: 96,
+          height: 96,
+          borderRadius: '50%',
+          background: 'linear-gradient(135deg, #FFD700 0%, #FFFFFF 50%, #00F0FF 100%)',
           display: 'flex',
-          justifyContent: 'space-between',
           alignItems: 'center',
-          padding: '14px 26px',
-          borderRadius: 14,
-          backgroundColor: 'rgba(3, 12, 28, 0.84)',
-          border: '1.5px solid rgba(0, 240, 255, 0.45)',
-          boxShadow: '0 8px 28px rgba(0, 0, 0, 0.65)',
-          zIndex: 11,
+          justifyContent: 'center',
+          boxShadow:
+            '0 0 32px rgba(0, 240, 255, 0.8), 0 0 32px rgba(255, 215, 0, 0.72), 0 8px 24px rgba(0, 0, 0, 0.8)',
+          transform: `scale(${vsBreath})`,
+          zIndex: 10,
+          pointerEvents: 'none',
         }}
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <span
+          style={{
+            fontFamily: FONT_DISPLAY,
+            fontSize: 36,
+            fontWeight: 900,
+            color: '#030816',
+            letterSpacing: '-0.02em',
+          }}
+        >
+          VS
+        </span>
+      </div>
+
+      {/* Two identical symmetric stat pills cleanly above the bottom: 420px subtitle safe zone */}
+      <div
+        style={{
+          position: 'absolute',
+          bottom: 596,
+          left: 44,
+          right: 44,
+          display: 'flex',
+          gap: 24,
+          zIndex: 12,
+          pointerEvents: 'none',
+        }}
+      >
+        {/* Left Pill: Prime R9 (Gold Accent) */}
+        <div
+          style={{
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 4,
+            padding: '14px 20px',
+            borderRadius: 16,
+            backgroundColor: 'rgba(4, 12, 28, 0.88)',
+            border: '2px solid #FFD700',
+            boxShadow: `0 0 ${Math.round(22 + r9Pulse * 24)}px rgba(255, 215, 0, ${(0.35 + r9Pulse * 0.4).toFixed(2)}), 0 10px 28px rgba(0, 0, 0, 0.75)`,
+            transform: `scale(${(1 + r9Pulse * 0.04).toFixed(4)})`,
+          }}
+        >
           <span
             style={{
-              fontFamily: FONT_UI,
-              fontSize: 16,
-              fontWeight: 700,
-              letterSpacing: '0.14em',
-              color: '#88C8E8',
+              fontFamily: FONT_DISPLAY,
+              fontSize: 28,
+              fontWeight: 900,
+              letterSpacing: '0.06em',
+              color: '#FFFFFF',
+              lineHeight: 1.05,
             }}
           >
-            BIOMECHANICAL DELTA
+            PRIME R9
           </span>
           <span
             style={{
               fontFamily: FONT_DISPLAY,
-              fontSize: 26,
+              fontSize: 23,
               fontWeight: 900,
-              color: '#FFFFFF',
+              letterSpacing: '0.08em',
+              color: '#FFD700',
+              textShadow: '0 0 14px rgba(255, 215, 0, 0.85)',
+              lineHeight: 1.1,
             }}
           >
-            EXPLOSIVE LAUNCH VS MAX VELOCITY
+            3.2 G LAUNCH
           </span>
         </div>
+
+        {/* Right Pill: K. Mbappé (Cyan Accent) */}
         <div
           style={{
-            fontFamily: FONT_DISPLAY,
-            fontSize: 30,
-            fontWeight: 900,
-            color: '#FFD700',
-            textShadow: '0 0 14px rgba(255, 215, 0, 0.7)',
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 4,
+            padding: '14px 20px',
+            borderRadius: 16,
+            backgroundColor: 'rgba(4, 12, 28, 0.88)',
+            border: '2px solid #00F0FF',
+            boxShadow: `0 0 ${Math.round(22 + mbappePulse * 24)}px rgba(0, 240, 255, ${(0.35 + mbappePulse * 0.4).toFixed(2)}), 0 10px 28px rgba(0, 0, 0, 0.75)`,
+            transform: `scale(${(1 + mbappePulse * 0.04).toFixed(4)})`,
           }}
         >
-          3.2 G
+          <span
+            style={{
+              fontFamily: FONT_DISPLAY,
+              fontSize: 28,
+              fontWeight: 900,
+              letterSpacing: '0.06em',
+              color: '#FFFFFF',
+              lineHeight: 1.05,
+            }}
+          >
+            K. MBAPPÉ
+          </span>
+          <span
+            style={{
+              fontFamily: FONT_DISPLAY,
+              fontSize: 23,
+              fontWeight: 900,
+              letterSpacing: '0.08em',
+              color: '#00F0FF',
+              textShadow: '0 0 14px rgba(0, 240, 255, 0.85)',
+              lineHeight: 1.1,
+            }}
+          >
+            38 KM/H MAX
+          </span>
         </div>
       </div>
     </AbsoluteFill>
@@ -610,20 +593,20 @@ const Scene1Hook: React.FC = () => {
 };
 
 /**
- * SCENE 2 (Frames 180 - 405 | Local 0 - 225): Mbappé 38 KM/H Top Speed
+ * SCENE 2 (Frames 183 - 330 | Local 0 - 147): Mbappé 38 KM/H Top Speed
  */
 const Scene2MbappeSpeed: React.FC = () => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
 
-  // Rapid velocity count-up 0 -> 38 KM/H synchronized with tick at local frame 60 (global 240)
-  const speedValue = interpolate(frame, [4, 60], [0, 38], {
+  // Rapid velocity count-up 0 -> 38 KM/H peaking as "38 KILOMETERS PER HOUR" lands (local 84 / global 267)
+  const speedValue = interpolate(frame, [6, 86], [0, 38], {
     extrapolateLeft: 'clamp',
     extrapolateRight: 'clamp',
   });
   const displaySpeedInt = Math.round(speedValue);
   const displaySpeedDecimal = speedValue.toFixed(1);
-  const barPercent = interpolate(frame, [4, 60], [0, 95], {
+  const barPercent = interpolate(frame, [6, 86], [0, 95], {
     extrapolateLeft: 'clamp',
     extrapolateRight: 'clamp',
   });
@@ -712,7 +695,7 @@ const Scene2MbappeSpeed: React.FC = () => {
         top={335}
         left={110}
         zoomAmount={0.07}
-        zoomDuration={225}
+        zoomDuration={147}
         style={{ zIndex: 5 }}
       />
 
@@ -812,33 +795,34 @@ const Scene2MbappeSpeed: React.FC = () => {
 };
 
 /**
- * SCENE 3 (Frames 405 - 685 | Local 0 - 280): R9 1997 Peak — 30 KM/H in 1.8s
- * Rapid tick hits at global 450 (local 45), 480 (local 75), 510 (local 105).
+ * SCENE 3 (Frames 330 - 651 | Local 0 - 321): R9 1997 Peak — 30 KM/H in 1.8s
+ * Tick hits at global 441 (local 111), 507 (local 177), 570 (local 240) synced with
+ * 0 -> 30 KM/H and 0.0s -> 1.8s count-ups.
  */
 const Scene3R9Peak: React.FC = () => {
   const frame = useCurrentFrame();
 
-  // Synchronized count-up across local frames 15..115 (hitting ticks at 45, 75, 105)
-  const secondsCount = interpolate(frame, [15, 110], [0, 1.8], {
+  // Synchronized count-ups across local frames hitting ticks at 111 (441), 177 (507), 240 (570)
+  const speedCount = interpolate(frame, [20, 111, 177], [0, 18, 30], {
     extrapolateLeft: 'clamp',
     extrapolateRight: 'clamp',
   });
-  const speedCount = interpolate(frame, [15, 110], [0, 30], {
-    extrapolateLeft: 'clamp',
-    extrapolateRight: 'clamp',
-  });
-
-  // Animated acceleration curve draw progress
-  const curveDraw = interpolate(frame, [30, 165], [0, 1], {
+  const secondsCount = interpolate(frame, [20, 111, 177, 240], [0, 0.6, 1.4, 1.8], {
     extrapolateLeft: 'clamp',
     extrapolateRight: 'clamp',
   });
 
-  // Subtle flash pulse on tick frames 45, 75, 105
+  // Animated acceleration curve draw progress synced to 1.8s beat (local 177) & completion (local 245)
+  const curveDraw = interpolate(frame, [25, 177, 245], [0, 0.56, 1], {
+    extrapolateLeft: 'clamp',
+    extrapolateRight: 'clamp',
+  });
+
+  // Subtle flash pulse on tick frames 111 (441), 177 (507), 240 (570)
   const isTickPulse =
-    (frame >= 45 && frame <= 49) ||
-    (frame >= 75 && frame <= 79) ||
-    (frame >= 105 && frame <= 111);
+    (frame >= 111 && frame <= 116) ||
+    (frame >= 177 && frame <= 182) ||
+    (frame >= 240 && frame <= 246);
 
   return (
     <AbsoluteFill>
@@ -910,7 +894,7 @@ const Scene3R9Peak: React.FC = () => {
         top={185}
         left={125}
         zoomAmount={0.06}
-        zoomDuration={280}
+        zoomDuration={321}
         style={{ zIndex: 5 }}
       />
 
@@ -935,7 +919,7 @@ const Scene3R9Peak: React.FC = () => {
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            marginBottom: 10,
+            marginBottom: 12,
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
@@ -982,20 +966,70 @@ const Scene3R9Peak: React.FC = () => {
           </span>
         </div>
 
-        {/* Animated SVG Curve: R9 Steep Launch vs Mbappé Top-End */}
-        <svg width="928" height="162" viewBox="0 0 928 162" style={{ display: 'block' }}>
-          {/* Horizontal telemetry grid lines */}
-          <line x1="60" y1="22" x2="900" y2="22" stroke="rgba(255,255,255,0.10)" strokeWidth="1" />
-          <line x1="60" y1="62" x2="900" y2="62" stroke="rgba(255,255,255,0.10)" strokeWidth="1" />
-          <line x1="60" y1="102" x2="900" y2="102" stroke="rgba(255,255,255,0.10)" strokeWidth="1" />
-          <line x1="60" y1="138" x2="900" y2="138" stroke="rgba(255,255,255,0.28)" strokeWidth="1.5" />
+        {/* Animated SVG Curve: R9 Steep Launch vs Mbappé Top-End with clean corner legends */}
+        <svg width="928" height="212" viewBox="0 0 928 212" style={{ display: 'block' }}>
+          {/* Clean Top-Left Corner Legend: R9: 30 KM/H @ 1.8s (generously padded above curves) */}
+          <g>
+            <rect
+              x="60"
+              y="2"
+              width="342"
+              height="38"
+              rx="10"
+              fill="rgba(255, 215, 0, 0.14)"
+              stroke="rgba(255, 215, 0, 0.65)"
+              strokeWidth="1.5"
+            />
+            <circle cx="82" cy="21" r="7" fill="#FFD700" />
+            <text
+              x="98"
+              y="29"
+              fill="#FFD700"
+              fontSize="23"
+              fontWeight="900"
+              fontFamily={FONT_DISPLAY}
+            >
+              R9: 30 KM/H @ 1.8s
+            </text>
+          </g>
+
+          {/* Clean Top-Right Corner Legend: MBAPPÉ: 38 KM/H TOP (generously padded above curves) */}
+          <g>
+            <rect
+              x="548"
+              y="2"
+              width="354"
+              height="38"
+              rx="10"
+              fill="rgba(0, 240, 255, 0.14)"
+              stroke="rgba(0, 240, 255, 0.65)"
+              strokeWidth="1.5"
+            />
+            <circle cx="570" cy="21" r="7" fill="#00F0FF" />
+            <text
+              x="586"
+              y="29"
+              fill="#00F0FF"
+              fontSize="23"
+              fontWeight="900"
+              fontFamily={FONT_DISPLAY}
+            >
+              MBAPPÉ: 38 KM/H TOP
+            </text>
+          </g>
+
+          {/* Horizontal telemetry grid lines (plotting zone y = 68..180, well clear of legends) */}
+          <line x1="60" y1="68" x2="902" y2="68" stroke="rgba(255,255,255,0.12)" strokeWidth="1" />
+          <line x1="60" y1="106" x2="902" y2="106" stroke="rgba(255,255,255,0.12)" strokeWidth="1" />
+          <line x1="60" y1="144" x2="902" y2="144" stroke="rgba(255,255,255,0.12)" strokeWidth="1" />
+          <line x1="60" y1="180" x2="902" y2="180" stroke="rgba(255,255,255,0.28)" strokeWidth="1.5" />
 
           {/* Vertical 1.8s benchmark marker */}
           <line
             x1="415"
-            y1="14"
+            y1="58"
             x2="415"
-            y2="138"
+            y2="180"
             stroke="#FFD700"
             strokeWidth="2"
             strokeDasharray="6 6"
@@ -1003,30 +1037,30 @@ const Scene3R9Peak: React.FC = () => {
           />
 
           {/* Y-axis labels */}
-          <text x="8" y="28" fill="#8FB6D4" fontSize="15" fontWeight="700" fontFamily={FONT_UI}>
+          <text x="8" y="74" fill="#8FB6D4" fontSize="16" fontWeight="700" fontFamily={FONT_UI}>
             38
           </text>
-          <text x="8" y="67" fill="#FFD700" fontSize="15" fontWeight="800" fontFamily={FONT_UI}>
+          <text x="8" y="112" fill="#FFD700" fontSize="16" fontWeight="800" fontFamily={FONT_UI}>
             30
           </text>
-          <text x="8" y="142" fill="#8FB6D4" fontSize="15" fontWeight="700" fontFamily={FONT_UI}>
+          <text x="8" y="185" fill="#8FB6D4" fontSize="16" fontWeight="700" fontFamily={FONT_UI}>
             0
           </text>
 
           {/* X-axis labels */}
-          <text x="60" y="157" fill="#8FB6D4" fontSize="15" fontWeight="700" fontFamily={FONT_UI}>
+          <text x="60" y="203" fill="#8FB6D4" fontSize="16" fontWeight="700" fontFamily={FONT_UI}>
             0.0s
           </text>
-          <text x="392" y="157" fill="#FFD700" fontSize="16" fontWeight="900" fontFamily={FONT_UI}>
+          <text x="392" y="203" fill="#FFD700" fontSize="17" fontWeight="900" fontFamily={FONT_UI}>
             1.8s
           </text>
-          <text x="845" y="157" fill="#00F0FF" fontSize="15" fontWeight="700" fontFamily={FONT_UI}>
+          <text x="845" y="203" fill="#00F0FF" fontSize="16" fontWeight="700" fontFamily={FONT_UI}>
             4.0s+
           </text>
 
           {/* Mbappé curve: smoother build-up, higher top-end (38 KM/H) */}
           <path
-            d="M 60 138 C 210 132, 340 94, 480 62 C 620 32, 740 22, 885 20"
+            d="M 60 180 C 210 174, 340 138, 480 108 C 620 80, 740 70, 888 68"
             pathLength={1}
             fill="none"
             stroke="#00F0FF"
@@ -1039,7 +1073,7 @@ const Scene3R9Peak: React.FC = () => {
 
           {/* R9 1997 curve: ultra-steep explosive launch hitting 30 KM/H by 1.8s */}
           <path
-            d="M 60 138 C 120 92, 225 56, 415 54 C 560 52, 710 46, 885 44"
+            d="M 60 180 C 120 136, 225 102, 415 100 C 560 98, 710 92, 888 90"
             pathLength={1}
             fill="none"
             stroke="#FFD700"
@@ -1052,35 +1086,16 @@ const Scene3R9Peak: React.FC = () => {
           {/* Peak highlight dot on R9 @ 1.8s */}
           {curveDraw > 0.45 && (
             <>
-              <circle cx="415" cy="54" r="11" fill="#FFD700" opacity="0.28" />
-              <circle cx="415" cy="54" r="6" fill="#FFD700" stroke="#FFFFFF" strokeWidth="2" />
-              <text
-                x="432"
-                y="46"
-                fill="#FFD700"
-                fontSize="16"
-                fontWeight="900"
-                fontFamily={FONT_UI}
-              >
-                R9: 30 KM/H @ 1.8s (DRIBBLING)
-              </text>
+              <circle cx="415" cy="100" r="12" fill="#FFD700" opacity="0.28" />
+              <circle cx="415" cy="100" r="6.5" fill="#FFD700" stroke="#FFFFFF" strokeWidth="2" />
             </>
           )}
 
-          {/* Top-end callout for Mbappé */}
-          {curveDraw > 0.8 && (
+          {/* Top-end highlight dot for Mbappé */}
+          {curveDraw > 0.85 && (
             <>
-              <circle cx="885" cy="20" r="6" fill="#00F0FF" stroke="#FFFFFF" strokeWidth="2" />
-              <text
-                x="670"
-                y="15"
-                fill="#00F0FF"
-                fontSize="15"
-                fontWeight="800"
-                fontFamily={FONT_UI}
-              >
-                MBAPPÉ: 38 KM/H TOP END
-              </text>
+              <circle cx="888" cy="68" r="11" fill="#00F0FF" opacity="0.28" />
+              <circle cx="888" cy="68" r="6.5" fill="#00F0FF" stroke="#FFFFFF" strokeWidth="2" />
             </>
           )}
         </svg>
@@ -1090,30 +1105,37 @@ const Scene3R9Peak: React.FC = () => {
 };
 
 /**
- * SCENE 4 (Frames 685 - 920 | Local 0 - 235): 400 Newtons Torque & Brain Reaction
- * bass-hit at global 685 (local 0), tick at global 790 (local 105).
+ * SCENE 4 (Frames 651 - 927 | Local 0 - 276): 400 Newtons Torque & Brain Reaction
+ * bass-hit at global 651 (local 0), tick at global 705 (local 54, 400 N reveal)
+ * and global 801 (local 150, defender reaction card).
  */
 const Scene4TorqueForce: React.FC = () => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
 
   const newtonsValue = Math.round(
-    interpolate(frame, [0, 58], [0, 400], {
+    interpolate(frame, [0, 54], [0, 400], {
       extrapolateLeft: 'clamp',
       extrapolateRight: 'clamp',
     })
   );
 
-  const gaugeSweep = interpolate(frame, [0, 58], [0, 1], {
+  const gaugeSweep = interpolate(frame, [0, 54], [0, 1], {
     extrapolateLeft: 'clamp',
     extrapolateRight: 'clamp',
   });
 
-  // Defender reaction alert pops in sharply at local frame 105 (global frame 790, matching tick.wav)
+  // Subtle pop on 400 N reveal at local frame 54 (global 705, matching tick.wav)
+  const newtonsRevealPulse = interpolate(frame, [54, 57, 64], [1, 1.045, 1], {
+    extrapolateLeft: 'clamp',
+    extrapolateRight: 'clamp',
+  });
+
+  // Defender reaction alert pops in sharply at local frame 150 (global frame 801, matching tick.wav)
   const reactionPop =
-    frame >= 105
+    frame >= 150
       ? spring({
-          frame: frame - 105,
+          frame: frame - 150,
           fps,
           config: { damping: 13, stiffness: 240, mass: 0.7 },
         })
@@ -1198,6 +1220,7 @@ const Scene4TorqueForce: React.FC = () => {
             alignItems: 'baseline',
             gap: 16,
             marginTop: 4,
+            transform: `scale(${newtonsRevealPulse})`,
           }}
         >
           <span
@@ -1239,7 +1262,7 @@ const Scene4TorqueForce: React.FC = () => {
         top={195}
         left={120}
         zoomAmount={0.08}
-        zoomDuration={235}
+        zoomDuration={276}
         style={{ zIndex: 5 }}
       />
 
@@ -1314,7 +1337,7 @@ const Scene4TorqueForce: React.FC = () => {
           </div>
         </div>
 
-        {/* Row 2: Defender Reaction 0.30s (TOO LATE) popping in at local frame 105 */}
+        {/* Row 2: Defender Reaction 0.30s (TOO LATE) popping in at local frame 150 (global 801) */}
         <div
           style={{
             display: 'flex',
@@ -1323,13 +1346,13 @@ const Scene4TorqueForce: React.FC = () => {
             padding: '14px 18px',
             borderRadius: 12,
             backgroundColor:
-              frame >= 105 ? 'rgba(255, 59, 92, 0.18)' : 'rgba(255, 255, 255, 0.04)',
+              frame >= 150 ? 'rgba(255, 59, 92, 0.18)' : 'rgba(255, 255, 255, 0.04)',
             border:
-              frame >= 105
+              frame >= 150
                 ? '1.5px solid rgba(255, 59, 92, 0.85)'
                 : '1.5px solid rgba(255, 255, 255, 0.12)',
-            transform: `scale(${frame >= 105 ? interpolate(reactionPop, [0, 1], [0.92, 1]) : 1})`,
-            opacity: frame >= 105 ? 1 : 0.45,
+            transform: `scale(${frame >= 150 ? interpolate(reactionPop, [0, 1], [0.92, 1]) : 1})`,
+            opacity: frame >= 150 ? 1 : 0.45,
           }}
         >
           <span
@@ -1348,8 +1371,8 @@ const Scene4TorqueForce: React.FC = () => {
               fontFamily: FONT_DISPLAY,
               fontSize: 27,
               fontWeight: 900,
-              color: frame >= 105 ? '#FF4D6D' : '#8CA6BE',
-              textShadow: frame >= 105 ? '0 0 16px rgba(255, 59, 92, 0.85)' : 'none',
+              color: frame >= 150 ? '#FF4D6D' : '#8CA6BE',
+              textShadow: frame >= 150 ? '0 0 16px rgba(255, 59, 92, 0.85)' : 'none',
             }}
           >
             0.30s (TOO LATE)
@@ -1361,14 +1384,17 @@ const Scene4TorqueForce: React.FC = () => {
 };
 
 /**
- * SCENE 5 (Frames 920 - 1080 | Local 0 - 160): Visual A-E Debate & Seamless Loop
+ * SCENE 5 (Frames 927 - 1080 | Local 0 - 153): Visual A-E Debate (2-Row Grid) & Seamless Loop
  */
-const POLL_OPTIONS = [
-  { key: 'A', label: 'PRIME R9', accent: '#FFD700' },
-  { key: 'B', label: 'MBAPPÉ', accent: '#00F0FF' },
-  { key: 'C', label: 'PRIME BALE', accent: '#E2F1FF' },
-  { key: 'D', label: 'CR7 2008', accent: '#E2F1FF' },
-  { key: 'E', label: 'NOBODY', accent: '#E2F1FF' },
+const POLL_ROW_1 = [
+  { key: 'A', label: 'PRIME R9', accent: '#FFD700', idx: 0 },
+  { key: 'B', label: 'MBAPPÉ', accent: '#00F0FF', idx: 1 },
+  { key: 'C', label: 'PRIME BALE', accent: '#E2F1FF', idx: 2 },
+] as const;
+
+const POLL_ROW_2 = [
+  { key: 'D', label: 'CR7 2008', accent: '#E2F1FF', idx: 3 },
+  { key: 'E', label: 'NOBODY', accent: '#E2F1FF', idx: 4 },
 ] as const;
 
 const Scene5Debate: React.FC = () => {
@@ -1387,8 +1413,8 @@ const Scene5Debate: React.FC = () => {
     config: { damping: 15, stiffness: 180, mass: 0.8 },
   });
 
-  // Subtle highlight sweep across A -> E over the 160-frame outro
-  const activeOptionIdx = Math.floor(frame / 28) % POLL_OPTIONS.length;
+  // Subtle highlight sweep across A -> E over the 153-frame outro
+  const activeOptionIdx = Math.floor(frame / 28) % 5;
 
   return (
     <AbsoluteFill>
@@ -1464,7 +1490,7 @@ const Scene5Debate: React.FC = () => {
         top={265}
         left={-75}
         zoomAmount={0.05}
-        zoomDuration={160}
+        zoomDuration={153}
         style={{ zIndex: 6 }}
       />
 
@@ -1479,7 +1505,7 @@ const Scene5Debate: React.FC = () => {
         top={355}
         right={-35}
         zoomAmount={0.05}
-        zoomDuration={160}
+        zoomDuration={153}
         style={{ zIndex: 6 }}
       />
 
@@ -1637,65 +1663,104 @@ const Scene5Debate: React.FC = () => {
           </span>
         </div>
 
+        {/* Clean 2-Row Grid Poll with 24px bold text */}
         <div
           style={{
             display: 'flex',
-            flexWrap: 'wrap',
-            justifyContent: 'center',
-            gap: 10,
+            flexDirection: 'column',
+            gap: 12,
           }}
         >
-          {POLL_OPTIONS.map((opt, idx) => {
-            const isActive = idx === activeOptionIdx;
-            return (
-              <div
-                key={opt.key}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  padding: '8px 14px',
-                  borderRadius: 10,
-                  backgroundColor: isActive
-                    ? 'rgba(0, 240, 255, 0.22)'
-                    : 'rgba(255, 255, 255, 0.06)',
-                  border: isActive
-                    ? `1.5px solid ${opt.accent}`
-                    : '1.5px solid rgba(255, 255, 255, 0.16)',
-                  boxShadow: isActive ? `0 0 16px ${opt.accent}55` : 'none',
-                }}
-              >
-                <span
+          {/* Row 1: A) PRIME R9 | B) MBAPPÉ | C) PRIME BALE */}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(3, 1fr)',
+              gap: 12,
+            }}
+          >
+            {POLL_ROW_1.map((opt) => {
+              const isActive = opt.idx === activeOptionIdx;
+              return (
+                <div
+                  key={opt.key}
                   style={{
-                    fontFamily: FONT_DISPLAY,
-                    fontSize: 20,
-                    fontWeight: 900,
-                    color: '#030816',
-                    backgroundColor: opt.accent,
-                    width: 28,
-                    height: 28,
-                    borderRadius: 6,
-                    display: 'inline-flex',
+                    display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
+                    padding: '12px 14px',
+                    borderRadius: 12,
+                    backgroundColor: isActive
+                      ? 'rgba(0, 240, 255, 0.22)'
+                      : 'rgba(255, 255, 255, 0.06)',
+                    border: isActive
+                      ? `2px solid ${opt.accent}`
+                      : '1.5px solid rgba(255, 255, 255, 0.18)',
+                    boxShadow: isActive ? `0 0 18px ${opt.accent}55` : 'none',
                   }}
                 >
-                  {opt.key}
-                </span>
-                <span
+                  <span
+                    style={{
+                      fontFamily: FONT_DISPLAY,
+                      fontSize: 24,
+                      fontWeight: 900,
+                      letterSpacing: '0.02em',
+                      color: '#FFFFFF',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    <span style={{ color: opt.accent }}>{opt.key})</span> {opt.label}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Row 2: D) CR7 2008 | E) NOBODY */}
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'center',
+              gap: 14,
+            }}
+          >
+            {POLL_ROW_2.map((opt) => {
+              const isActive = opt.idx === activeOptionIdx;
+              return (
+                <div
+                  key={opt.key}
                   style={{
-                    fontFamily: FONT_DISPLAY,
-                    fontSize: 21,
-                    fontWeight: 900,
-                    color: '#FFFFFF',
-                    letterSpacing: '0.03em',
+                    flex: '0 1 340px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '12px 20px',
+                    borderRadius: 12,
+                    backgroundColor: isActive
+                      ? 'rgba(0, 240, 255, 0.22)'
+                      : 'rgba(255, 255, 255, 0.06)',
+                    border: isActive
+                      ? `2px solid ${opt.accent}`
+                      : '1.5px solid rgba(255, 255, 255, 0.18)',
+                    boxShadow: isActive ? `0 0 18px ${opt.accent}55` : 'none',
                   }}
                 >
-                  {opt.label}
-                </span>
-              </div>
-            );
-          })}
+                  <span
+                    style={{
+                      fontFamily: FONT_DISPLAY,
+                      fontSize: 24,
+                      fontWeight: 900,
+                      letterSpacing: '0.02em',
+                      color: '#FFFFFF',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    <span style={{ color: opt.accent }}>{opt.key})</span> {opt.label}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
     </AbsoluteFill>
@@ -1723,28 +1788,28 @@ export const V11Video: React.FC = () => {
           transformOrigin: 'center center',
         }}
       >
-        {/* Scene 1: Frames 0 - 180 (Hook & Thumbnail) */}
-        <Sequence from={0} durationInFrames={180}>
+        {/* Scene 1: Frames 0 - 183 (0.0s - 6.1s | Hook & Unboxed Symmetric Face-Off) */}
+        <Sequence from={0} durationInFrames={183}>
           <Scene1Hook />
         </Sequence>
 
-        {/* Scene 2: Frames 180 - 405 (Mbappé 38 KM/H Top Speed) */}
-        <Sequence from={180} durationInFrames={225}>
+        {/* Scene 2: Frames 183 - 330 (6.1s - 11.0s | Mbappé 38 KM/H Top Speed) */}
+        <Sequence from={183} durationInFrames={147}>
           <Scene2MbappeSpeed />
         </Sequence>
 
-        {/* Scene 3: Frames 405 - 685 (R9 1997 Peak: 30 KM/H in 1.8s) */}
-        <Sequence from={405} durationInFrames={280}>
+        {/* Scene 3: Frames 330 - 651 (11.0s - 21.7s | R9 1997 Peak: 30 KM/H in 1.8s) */}
+        <Sequence from={330} durationInFrames={321}>
           <Scene3R9Peak />
         </Sequence>
 
-        {/* Scene 4: Frames 685 - 920 (400 Newtons Torque & Brain Reaction) */}
-        <Sequence from={685} durationInFrames={235}>
+        {/* Scene 4: Frames 651 - 927 (21.7s - 30.9s | 400 Newtons Torque & Brain Reaction) */}
+        <Sequence from={651} durationInFrames={276}>
           <Scene4TorqueForce />
         </Sequence>
 
-        {/* Scene 5: Frames 920 - 1080 (Visual A-E Debate & Seamless Loop) */}
-        <Sequence from={920} durationInFrames={160}>
+        {/* Scene 5: Frames 927 - 1080 (30.9s - 36.0s | Visual A-E Debate & Seamless Loop) */}
+        <Sequence from={927} durationInFrames={153}>
           <Scene5Debate />
         </Sequence>
       </AbsoluteFill>

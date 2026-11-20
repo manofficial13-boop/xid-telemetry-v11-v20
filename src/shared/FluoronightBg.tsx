@@ -2,7 +2,7 @@ import React from 'react';
 import { AbsoluteFill, Img, interpolate, staticFile, useCurrentFrame, useVideoConfig } from 'remotion';
 
 export interface FluoronightBgProps {
-  /** Apply inline SVG horizontal motion-blur filter (stdDeviation="14 0") for high-speed Panshot look */
+  /** Apply GPU-friendly CSS blur + horizontal speed streaks for high-speed Panshot look */
   panshotBlur?: boolean;
   /** Optional accent aura style behind the center subject */
   auraMode?: 'cyan' | 'gold' | 'dual';
@@ -10,7 +10,7 @@ export interface FluoronightBgProps {
   panRangePx?: number;
   /** Direction of slow horizontal pan */
   panDirection?: 'left' | 'right';
-  /** Unique filter ID suffix when rendering multiple instances */
+  /** Optional legacy identifier kept for backwards compatibility */
   filterId?: string;
 }
 
@@ -19,7 +19,6 @@ export const FluoronightBg: React.FC<FluoronightBgProps> = ({
   auraMode = 'cyan',
   panRangePx = 44,
   panDirection = 'left',
-  filterId = 'fluoronight-panshot-blur',
 }) => {
   const frame = useCurrentFrame();
   const { durationInFrames } = useVideoConfig();
@@ -44,26 +43,9 @@ export const FluoronightBg: React.FC<FluoronightBgProps> = ({
         overflow: 'hidden',
       }}
     >
-      {/* Inline SVG horizontal Panshot motion-blur filter */}
-      {panshotBlur && (
-        <svg
-          width="0"
-          height="0"
-          style={{ position: 'absolute', pointerEvents: 'none' }}
-          aria-hidden="true"
-        >
-          <defs>
-            <filter id={filterId} x="-15%" y="-15%" width="130%" height="130%">
-              <feGaussianBlur in="SourceGraphic" stdDeviation="14 0" edgeMode="duplicate" />
-            </filter>
-          </defs>
-        </svg>
-      )}
-
-      {/* Stadium backdrop with Fluoronight color grading + optional Panshot blur */}
+      {/* Stadium backdrop with Fluoronight color grading + lightweight CSS Panshot blur */}
       <AbsoluteFill
         style={{
-          filter: panshotBlur ? `url(#${filterId})` : undefined,
           transform: `translate3d(${panX}px, 0, 0) scale(${subtleZoom})`,
           transformOrigin: 'center center',
         }}
@@ -74,10 +56,31 @@ export const FluoronightBg: React.FC<FluoronightBgProps> = ({
             width: '100%',
             height: '100%',
             objectFit: 'cover',
-            filter: 'contrast(1.22) saturate(1.35) brightness(0.82)',
+            filter: panshotBlur
+              ? 'contrast(1.22) saturate(1.35) brightness(0.82) blur(3px)'
+              : 'contrast(1.22) saturate(1.35) brightness(0.82)',
           }}
         />
       </AbsoluteFill>
+
+      {/* Lightweight horizontal CSS linear-gradient speed streaks for Panshot motion feel */}
+      {panshotBlur && (
+        <AbsoluteFill
+          style={{
+            backgroundImage: [
+              'linear-gradient(180deg, transparent 0%, transparent 16%, rgba(0, 240, 255, 0.10) 16.4%, transparent 17.4%, transparent 29%, rgba(255, 255, 255, 0.08) 29.3%, transparent 30.1%, transparent 44%, rgba(0, 210, 255, 0.09) 44.5%, transparent 45.6%, transparent 59%, rgba(255, 255, 255, 0.06) 59.3%, transparent 60.1%, transparent 72%, rgba(0, 240, 255, 0.07) 72.4%, transparent 73.3%, transparent 100%)',
+              'repeating-linear-gradient(180deg, rgba(0, 240, 255, 0.03) 0px, rgba(0, 240, 255, 0.03) 2px, transparent 2px, transparent 20px)',
+            ].join(', '),
+            maskImage:
+              'linear-gradient(90deg, rgba(0,0,0,0.12) 0%, rgba(0,0,0,0.92) 22%, rgba(0,0,0,0.92) 78%, rgba(0,0,0,0.12) 100%)',
+            WebkitMaskImage:
+              'linear-gradient(90deg, rgba(0,0,0,0.12) 0%, rgba(0,0,0,0.92) 22%, rgba(0,0,0,0.92) 78%, rgba(0,0,0,0.12) 100%)',
+            mixBlendMode: 'screen',
+            transform: `translate3d(${panX * 0.65}px, 0, 0)`,
+            pointerEvents: 'none',
+          }}
+        />
+      )}
 
       {/* Deep night-blue atmospheric tint for Fluoronight cohesion */}
       <AbsoluteFill
