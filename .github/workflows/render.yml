@@ -1,0 +1,39 @@
+﻿name: Render Xid Telemetry Short
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      episode:
+        description: 'Episode ID to render (e.g. v11, v12)'
+        required: true
+        default: 'v11'
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Render MP4 Video
+        env:
+          EPISODE_ID: ${{ github.event.inputs.episode || 'v11' }}
+        run: npx remotion render src/index.ts "$EPISODE_ID" "out/${EPISODE_ID}.mp4"
+
+      - name: Upload Rendered Video
+        uses: actions/upload-artifact@v4
+        with:
+          name: xid-${{ github.event.inputs.episode || 'v11' }}-mp4
+          path: out/${{ github.event.inputs.episode || 'v11' }}.mp4
+          retention-days: 7
